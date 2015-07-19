@@ -6,6 +6,7 @@
   <script src="js/raphael.js"></script>
   <script src="js/orbital-map.js"></script>
   <script src="js/telemachus.js"></script>
+  <script src="js/hohmann-intercept.js"></script>
 </head>
 <body>
 <div id="orbital-map">
@@ -14,55 +15,6 @@
 <div id="test"></div>
 <script>
   document.observe('dom:loaded', function(){
-    window.map = new OrbitalMap('orbital-map')
-
-    var standdardGravity = 3531600010120;
-
-    debugger
-
-    var divideAltitude = function(data){
-      console.log(data['v.altitude'] + "/2 = " + data['v.altitude'] / 2.0);
-    }
-
-    var calculateDeltaV1 = function(data){
-      var r1 = data['o.PeA']
-      var r2 = data['tar.o.PeA']
-      var mu = standdardGravity
-
-      var factor1 = Math.sqrt(mu/r1)
-      var factor2 = Math.sqrt((2 * r2)/(r1 + r2))
-
-      var deltaV1 = factor1 * (factor2 - 1)
-
-      console.log("delta V1: " + deltaV1)
-    }
-
-    var calculatePhaseAngle = function(data){
-      var r1 = data['o.PeA']
-      var r2 = data['tar.o.PeA']
-      var radius = 600000
-      var numberOfOrbits = Math.pow(0.5 * ( (r1 + r2 + (2*radius) )/((2*radius) + (2*r2)) ), 1.5)
-
-      if(numberOfOrbits < 1){
-        var fractionalPart = numberOfOrbits
-      } else{
-        var fractionalPart = (numberOfOrbits % 1)
-      }
-
-      var sweepAngle = 360 * fractionalPart
-      var phaseAngle = 180 - sweepAngle
-
-      var targetPhaseAngle = data["b.o.phaseAngle[2]"]
-
-      console.log("Phase Angle: " + phaseAngle + " targetPhaseAngle: " + targetPhaseAngle)
-
-      if(phaseAngle <= targetPhaseAngle + 30 && phaseAngle >= targetPhaseAngle - 30){
-        console.log("FIRE EVERYTHING")
-      }
-    }
-
-
-
     window.datalink = new Telemachus('192.168.1.41','8085')
     window.datalink.socket.onopen = function(){
       window.datalink.subscribeToData([
@@ -70,27 +22,11 @@
         'tar.o.PeA', "b.o.phaseAngle[2]"
       ])
 
-      console.log('a')
       window.datalink.send({rate: 1000})
-      window.datalink.addReceiverFunction(divideAltitude)
-      window.datalink.addReceiverFunction(calculateDeltaV1)
-      window.datalink.addReceiverFunction(calculatePhaseAngle)
+
+
+      window.transfer = new HohmannIntercept(window.datalink)
     }
-
-    // window.socketTest = new WebSocket('ws://192.168.1.22:8085/datalink')
-    // debugger
-    // socketTest.onmessage = function(event){
-    //   var data = JSON.parse(event.data)
-    //   console.log(data)
-    // }
-
-    // socketTest.onopen = function(){
-    //   debugger
-    //   socketTest.send(JSON.stringify({ // any default key/values you want to send when the ui is started
-    //     "+": ['v.name', 'p.paused', 'a.version'],
-    //     "rate": 1000
-    //   }))
-    // }
   })
 </script>
 </body>
