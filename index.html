@@ -16,17 +16,8 @@
 <script>
   document.observe('dom:loaded', function(){
     window.datalink = new Telemachus('192.168.1.41','8085')
-    window.datalink.socket.onopen = function(){
-      window.datalink.subscribeToData([
-        'v.altitude', 'o.PeA', 'v.orbitalVelocity',
-        'tar.o.PeA', "b.o.phaseAngle[2]"
-      ])
 
-      window.datalink.send({rate: 1000})
-
-
-      window.transfer = new HohmannIntercept(window.datalink)
-    }
+    window.transfer = new HohmannIntercept(window.datalink)
   })
 </script>
 </body>
