@@ -4,7 +4,7 @@ var Telemachus = Class.create({
     this.receiverFunctions = []
     this.subscribedFields = {}
     this.orbitingBodies = this.getOrbitalBodies()
-    this.rate = 1000
+    this.rate = 500
 
     this.loopTimeout = setTimeout(this.poll.bind(this), this.rate)
   },
@@ -22,7 +22,11 @@ var Telemachus = Class.create({
 
   dispatchMessages: function(data){
     for (var i = this.receiverFunctions.length - 1; i >= 0; i--) {
-      this.receiverFunctions[i](data)
+      try{
+        this.receiverFunctions[i](data)
+      } catch(e){
+        console.error(e)
+      }
     };
 
     console.log(data)

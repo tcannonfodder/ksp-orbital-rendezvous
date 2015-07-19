@@ -1,40 +1,70 @@
 var HohmannIntercept = Class.create({
-  initialize: function(datalink){
+  initialize: function(datalink, options){
     this.datalink = datalink
+    this.options = options || {}
     this.targetBody = {}
     this.vessel = {}
 
+    // This is the basic math info we'll need, along with the data to get
+    // additional info about the target and the orbiting bodies in question
+    this.datalink.subscribeToData([
+      'v.altitude', 'o.PeA', 'v.orbitalVelocity',
+      'tar.o.PeA', 'tar.name', 'tar.o.orbitingBody', 'v.body'
+    ])
+
+    this.datalink.addReceiverFunction(this.getVesselAndTargetInfo.bind(this))
     this.datalink.addReceiverFunction(this.updateCalculations.bind(this))
   },
 
+  getVesselAndTargetInfo: function(data){
+    this.targetBody = this.datalink.getOrbitalBodyInfo(data['tar.name'])
+    this.targetBody.orbitingBody = this.datalink.getOrbitalBodyInfo(data['tar.o.orbitingBody'])
+    this.targetBody.periapsis = data['tar.o.PeA']
+    this.vessel.orbitingBody = this.datalink.getOrbitalBodyInfo(data['v.body'])
+    this.vessel.periapsis = data['o.PeA']
+    this.vessel.altitude = data['v.altitude']
+    this.vessel.orbitalVelocity = data['v.orbitalVelocity']
+
+    this.datalink.subscribeToData([
+      "b.o.gravParameter["+ this.vessel.orbitingBody.id +"]",
+      "b.radius["+ this.vessel.orbitingBody.id +"]",
+      "b.o.phaseAngle["+ this.targetBody.id +"]"
+    ])
+  },
+
   updateCalculations: function(data){
-    this.divideAltitude(data)
-    this.calculateDeltaV1(data)
+    this.calculateDeltaV(data)
     this.calculatePhaseAngle(data)
+
+    document.fire('hohmann-intercept:update')
   },
 
-  divideAltitude: function(data){
-    console.log(data['v.altitude'] + "/2 = " + data['v.altitude'] / 2.0);
-  },
-
-  calculateDeltaV1: function(data){
-    var standdardGravity = 3531600010120;
-    var r1 = data['o.PeA']
-    var r2 = data['tar.o.PeA']
-    var mu = standdardGravity
+  calculateDeltaV: function(data){
+    var radiusOfBody = data["b.radius["+ this.vessel.orbitingBody.id +"]"]
+    var r1 = data['o.PeA'] + radiusOfBody
+    var r2 = data['tar.o.PeA'] + radiusOfBody
+    var mu = data["b.o.gravParameter["+ this.vessel.orbitingBody.id +"]"];
 
     var factor1 = Math.sqrt(mu/r1)
     var factor2 = Math.sqrt((2 * r2)/(r1 + r2))
 
-    var deltaV1 = factor1 * (factor2 - 1)
+    this.deltaV = factor1 * (factor2 - 1)
 
-    console.log("delta V1: " + deltaV1)
+    console.log("delta V1: " + this.deltaV)
+  },
+
+  isGoForIntercept: function(){
+    return (
+      this.phaseAngle <= this.targetsCurrentPhaseAngle + 20 &&
+      this.phaseAngle >= this.targetsCurrentPhaseAngle - 20 &&
+      this.deltaV > 5
+    )
   },
 
   calculatePhaseAngle: function(data){
     var r1 = data['o.PeA']
     var r2 = data['tar.o.PeA']
-    var radius = 600000
+    var radius = data["b.radius["+ this.vessel.orbitingBody.id +"]"]
     var numberOfOrbits = Math.pow(0.5 * ( (r1 + r2 + (2*radius) )/((2*radius) + (2*r2)) ), 1.5)
 
     if(numberOfOrbits < 1){
@@ -43,14 +73,14 @@ var HohmannIntercept = Class.create({
       var fractionalPart = (numberOfOrbits % 1)
     }
 
-    var sweepAngle = 360 * fractionalPart
-    var phaseAngle = 180 - sweepAngle
+    this.sweepAngle = 360 * fractionalPart
+    this.phaseAngle = 180 - this.sweepAngle
 
-    var targetPhaseAngle = data["b.o.phaseAngle[2]"]
+    this.targetsCurrentPhaseAngle = data["b.o.phaseAngle["+ this.targetBody.id +"]"]
 
-    console.log("Phase Angle: " + phaseAngle + " targetPhaseAngle: " + targetPhaseAngle)
+    console.log("Phase Angle: " + this.phaseAngle + " targetsCurrentPhaseAngle: " + this.targetsCurrentPhaseAngle)
 
-    if(phaseAngle <= targetPhaseAngle + 30 && phaseAngle >= targetPhaseAngle - 30){
+    if(this.isGoForIntercept()){
       console.log("FIRE EVERYTHING")
     }
   }

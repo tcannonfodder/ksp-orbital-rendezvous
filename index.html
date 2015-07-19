@@ -4,20 +4,105 @@
   <title></title>
   <script src="js/prototype.js"></script>
   <script src="js/raphael.js"></script>
+  <script src="js/numeral.min.js"></script>
   <script src="js/orbital-map.js"></script>
   <script src="js/telemachus.js"></script>
   <script src="js/hohmann-intercept.js"></script>
 </head>
 <body>
+
+<form id="connection-info">
+  <h2 id="connection-status"></h2>
+  <input type="text" name="connection-host" id="connection-host" value="192.168.1.41">
+  <input type="text" name="connection-port" id="connection-port" value="8085">
+
+  <button type="submit">Connect</button>
+</form>
+
+<div id="intercept-info">
+  <h2>Intercept Information</h2>
+  <strong id="go-signal"></strong>
+  <table>
+    <tr>
+      <th>Vessel Altitude</th>
+      <td id="vessel-altitude"></td>
+    </tr>
+
+    <tr>
+      <th>Vessel Orbital Velocity</th>
+      <td id="vessel-orbital-velocity"></td>
+    </tr>
+
+    <tr>
+      <th>Vessel Periapsis</th>
+      <td id="vessel-periapsis"></td>
+    </tr>
+
+    <tr>
+      <th>Target Periapsis</th>
+      <td id="target-periapsis"></td>
+    </tr>
+
+    <tr>
+      <th>Delta-V</th>
+      <td id="delta-v"></td>
+    </tr>
+
+    <tr>
+      <th>Sweep Angle</th>
+      <td id="sweep-angle"></td>
+    </tr>
+
+    <tr>
+      <th>Phase Angle</th>
+      <td id="phase-angle"></td>
+    </tr>
+
+    <tr>
+      <th>Target's Current Phase Angle</th>
+      <td id="target-current-phase-angle"></td>
+    </tr>
+  </table>
+</div>
+
 <div id="orbital-map">
 </div>
 
 <div id="test"></div>
 <script>
-  document.observe('dom:loaded', function(){
-    window.datalink = new Telemachus('192.168.1.41','8085')
+  window.setupConnection = function(){
+    window.datalink = new Telemachus($('connection-host').value, $('connection-port').value)
+  }
 
-    window.transfer = new HohmannIntercept(window.datalink)
+  document.observe('dom:loaded', function(){
+    setupConnection()
+
+    window.intercept = new HohmannIntercept(window.datalink)
+
+    document.observe('hohmann-intercept:update', function(){
+      var updateValue = function(id, value, format, suffix){
+        $(id).update(numeral(value).format(format) + " " + suffix)
+      }
+
+      updateValue('vessel-altitude', intercept.vessel.altitude, '0,0.00', 'm')
+
+      // $('vessel-altitude').update(numeral.format())
+      updateValue('vessel-orbital-velocity', intercept.vessel.orbitalVelocity, '0,0.00', 'm/s')
+      updateValue('vessel-periapsis', intercept.vessel.periapsis, '0,0.00', 'm')
+      updateValue('target-periapsis', intercept.targetBody.periapsis, '0,0.00', 'm')
+      updateValue('delta-v', intercept.deltaV, '0,0.00', 'm/s')
+      updateValue('sweep-angle', intercept.sweepAngle, '0,0.00', '&deg;')
+      updateValue('phase-angle', intercept.phaseAngle, '0,0.00', '&deg;')
+      updateValue('target-current-phase-angle', intercept.targetsCurrentPhaseAngle, '0,0.00', '&deg;')
+
+      if(intercept.isGoForIntercept()){
+        $('go-signal').update("GO FOR MANUEVER")
+      }
+    })
+
+    $('connection-info').observe('submit', function(){
+      setupConnection()
+    })
   })
 </script>
 </body>
