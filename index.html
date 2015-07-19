@@ -8,15 +8,6 @@
   <script src="js/telemachus.js"></script>
 </head>
 <body>
-
-<form id="connection-info">
-  <h2 id="connection-status"></h2>
-  <input type="text" name="connection-host" id="connection-host" value="192.168.1.41">
-  <input type="text" name="connection-port" id="connection-port" value="8085">
-
-  <button type="submit">Connect</button>
-</form>
-
 <div id="orbital-map">
 </div>
 
@@ -25,99 +16,66 @@
   document.observe('dom:loaded', function(){
     window.map = new OrbitalMap('orbital-map')
 
-    var setupConnection = function(){
-      window.targetOrbitingBodyName = ''
-      window.targetOrbitingBodyID = ''
-      window.vesselOrbitingBodyName = ''
-      window.vesselOrbitingBodyID = ''
+    var standdardGravity = 3531600010120;
 
-      var calculateDeltaV1 = function(data){
-        var r1 = data['o.PeA']
-        var r2 = data['tar.o.PeA']
-        var mu = 10//data['b.o.gravParameter['+ vesselOrbitingBodyID +']']
+    debugger
 
-        var factor1 = Math.sqrt(mu/r1)
-        var factor2 = Math.sqrt((2 * r2)/(r1 + r2))
+    var divideAltitude = function(data){
+      console.log(data['v.altitude'] + "/2 = " + data['v.altitude'] / 2.0);
+    }
 
-        var deltaV1 = factor1 * (factor2 - 1)
+    var calculateDeltaV1 = function(data){
+      var r1 = data['o.PeA']
+      var r2 = data['tar.o.PeA']
+      var mu = standdardGravity
 
-        console.log("delta V1: " + deltaV1)
+      var factor1 = Math.sqrt(mu/r1)
+      var factor2 = Math.sqrt((2 * r2)/(r1 + r2))
+
+      var deltaV1 = factor1 * (factor2 - 1)
+
+      console.log("delta V1: " + deltaV1)
+    }
+
+    var calculatePhaseAngle = function(data){
+      var r1 = data['o.PeA']
+      var r2 = data['tar.o.PeA']
+      var radius = 600000
+      var numberOfOrbits = Math.pow(0.5 * ( (r1 + r2 + (2*radius) )/((2*radius) + (2*r2)) ), 1.5)
+
+      if(numberOfOrbits < 1){
+        var fractionalPart = numberOfOrbits
+      } else{
+        var fractionalPart = (numberOfOrbits % 1)
       }
 
-      var subscribeToTargetAndOrbitingBodyInfo = function(data){
-        //get the name of the target's orbiting body
-        window.targetOrbitingBodyName = data['tar.o.orbitingBody']
-        window.targetOrbitingBodyID = window.datalink.getBodyId(targetOrbitingBodyName)
+      var sweepAngle = 360 * fractionalPart
+      var phaseAngle = 180 - sweepAngle
 
-        window.vesselOrbitingBodyName = data['v.body']
-        window.vesselOrbitingBodyID = window.datalink.getBodyId(targetOrbitingBodyName)
+      var targetPhaseAngle = data["b.o.phaseAngle[2]"]
 
-        console.log("Vessel Orbiting '"+ vesselOrbitingBodyName +"' ("+ vesselOrbitingBodyID +") ; Target Orbiting '"+ targetOrbitingBodyName +"' ("+ targetOrbitingBodyID +")")
+      console.log("Phase Angle: " + phaseAngle + " targetPhaseAngle: " + targetPhaseAngle)
 
-        // window.datalink.subscribeToData([
-          // "b.o.gravParameter["+ vesselOrbitingBodyID +"]",
-          // "b.radis["+ vesselOrbitingBodyID +"]",
-          // "b.soi["+ vesselOrbitingBodyID +"]"
-        // ])
-      }
-
-      var calculatePhaseAngle = function(data){
-        var r1 = data['o.PeA']
-        var r2 = data['tar.o.PeA']
-        var radius =  100 //data['b.radius['+ vesselOrbitingBodyID +']']
-        var numberOfOrbits = Math.pow(0.5 * ( (r1 + r2 + (2*radius) )/((2*radius) + (2*r2)) ), 1.5)
-
-        if(numberOfOrbits < 1){
-          var fractionalPart = numberOfOrbits
-        } else{
-          var fractionalPart = (numberOfOrbits % 1)
-        }
-
-        var sweepAngle = 360 * fractionalPart
-        var phaseAngle = 180 - sweepAngle
-
-        var targetPhaseAngle = data["b.o.phaseAngle[2]"]
-
-        console.log("Phase Angle: " + phaseAngle + " targetPhaseAngle: " + targetPhaseAngle)
-
-        if(phaseAngle <= targetPhaseAngle + 30 && phaseAngle >= targetPhaseAngle - 30){
-          console.log("FIRE EVERYTHING")
-        }
-      }
-
-
-
-      window.datalink = new Telemachus($('connection-host').value,$('connection-port').value)
-      window.datalink.socket.onopen = function(){
-        window.datalink.subscribeToData([
-          'v.altitude'//, 'o.PeA', 'v.orbitalVelocity',
-          //'tar.o.PeA', 'tar.name', 'tar.o.orbitingBody', 'v.body'
-        ])
-
-        window.datalink.send({rate: 75})
-        // window.datalink.addReceiverFunction(subscribeToTargetAndOrbitingBodyInfo)
-        window.datalink.addReceiverFunction(calculateDeltaV1)
-        window.datalink.addReceiverFunction(calculatePhaseAngle)
-
-        $('connection-status').innerHTML = "CONNECTED"
-      }
-
-      window.datalink.onerror = function(){
-        $('connection-status').innerHTML = "NOT CONNECTED"
-      }
-
-      window.datalink.onclose = function(){
-        $('connection-status').innerHTML = "NOT CONNECTED"
+      if(phaseAngle <= targetPhaseAngle + 30 && phaseAngle >= targetPhaseAngle - 30){
+        console.log("FIRE EVERYTHING")
       }
     }
 
 
-    $('connection-info').observe('submit', function(event){
-      event.preventDefault()
-      setupConnection()
-    })
 
-    setupConnection()
+    window.datalink = new Telemachus('192.168.1.41','8085')
+    window.datalink.socket.onopen = function(){
+      window.datalink.subscribeToData([
+        'v.altitude', 'o.PeA', 'v.orbitalVelocity',
+        'tar.o.PeA', "b.o.phaseAngle[2]"
+      ])
+
+      console.log('a')
+      window.datalink.send({rate: 1000})
+      window.datalink.addReceiverFunction(divideAltitude)
+      window.datalink.addReceiverFunction(calculateDeltaV1)
+      window.datalink.addReceiverFunction(calculatePhaseAngle)
+    }
 
     // window.socketTest = new WebSocket('ws://192.168.1.22:8085/datalink')
     // debugger
