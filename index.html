@@ -100,7 +100,8 @@
       }
     })
 
-    $('connection-info').observe('submit', function(){
+    $('connection-info').observe('submit', function(event){
+      event.preventDefault()
       setupConnection()
     })
   })
