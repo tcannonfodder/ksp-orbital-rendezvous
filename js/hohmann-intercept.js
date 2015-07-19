@@ -8,8 +8,8 @@ var HohmannIntercept = Class.create({
     // This is the basic math info we'll need, along with the data to get
     // additional info about the target and the orbiting bodies in question
     this.datalink.subscribeToData([
-      'v.altitude', 'o.PeA', 'v.orbitalVelocity',
-      'tar.o.PeA', 'tar.name', 'tar.o.orbitingBody', 'v.body'
+      'v.altitude', 'o.ApA', 'o.PeA', 'v.orbitalVelocity',
+      'tar.o.ApA', 'tar.o.PeA', 'tar.name', 'tar.o.orbitingBody', 'v.body'
     ])
 
     this.datalink.addReceiverFunction(this.getVesselAndTargetInfo.bind(this))
@@ -19,9 +19,9 @@ var HohmannIntercept = Class.create({
   getVesselAndTargetInfo: function(data){
     this.targetBody = this.datalink.getOrbitalBodyInfo(data['tar.name'])
     this.targetBody.orbitingBody = this.datalink.getOrbitalBodyInfo(data['tar.o.orbitingBody'])
-    this.targetBody.periapsis = data['tar.o.PeA']
+    this.targetBody.periapsis = data['tar.o.ApA']
     this.vessel.orbitingBody = this.datalink.getOrbitalBodyInfo(data['v.body'])
-    this.vessel.periapsis = data['o.PeA']
+    this.vessel.periapsis = data['o.ApA']
     this.vessel.altitude = data['v.altitude']
     this.vessel.orbitalVelocity = data['v.orbitalVelocity']
 
@@ -41,8 +41,8 @@ var HohmannIntercept = Class.create({
 
   calculateDeltaV: function(data){
     var radiusOfBody = data["b.radius["+ this.vessel.orbitingBody.id +"]"]
-    var r1 = data['o.PeA'] + radiusOfBody
-    var r2 = data['tar.o.PeA'] + radiusOfBody
+    var r1 = data['o.ApA'] + radiusOfBody
+    var r2 = data['tar.o.ApA'] + radiusOfBody
     var mu = data["b.o.gravParameter["+ this.vessel.orbitingBody.id +"]"];
 
     var factor1 = Math.sqrt(mu/r1)
@@ -55,8 +55,8 @@ var HohmannIntercept = Class.create({
 
   isGoForIntercept: function(){
     return (
-      this.phaseAngle <= this.targetsCurrentPhaseAngle + 20 &&
-      this.phaseAngle >= this.targetsCurrentPhaseAngle - 20 &&
+      this.phaseAngle <= this.targetsCurrentPhaseAngle + 5 &&
+      this.phaseAngle >= this.targetsCurrentPhaseAngle - 5 &&
       this.deltaV > 5
     )
   },
